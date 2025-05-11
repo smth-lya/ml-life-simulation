@@ -153,6 +153,7 @@ dmypy.json
 cython_debug/
 
 # VS code configuration
+.idea
 .vscode/
 
 /data/raw/labeledTrainData.tsv
