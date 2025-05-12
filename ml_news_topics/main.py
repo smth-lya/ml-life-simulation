@@ -1,43 +1,68 @@
+from config.paths import RAW_DATA_PATH, PROCESSED_DATA_PATH
+from utils.data_loader import load_articles
+from utils.text_processor import process_text, split_data
+from utils.vocabulary import build_vocab, save_vocab
+from tqdm import tqdm
+from colorama import init, Fore, Style
+from NaiveBayesClassifier import NaiveBayesClassifier
+import time
 import json
-from stop_words import stop_words
-from nltk.stem import WordNetLemmatizer, PorterStemmer
 
-lemmatizer = WordNetLemmatizer()
-stemmer = PorterStemmer()
-
-def load_articles_from_json(filepath):
-    articles = []
-    with open(filepath, 'r', encoding='utf-8') as f:
-        for line in f:
-            data = json.loads(line)
-            articles.append(data)
-    return articles
-
-def clean_and_tokenize(text):
-    text = text.lower()
-    cleaned = "".join(char if char.isalpha() or char == " " else " " for char in text)
-    words = cleaned.split()
-
-    tokens = []
-    for word in words:
-        if word not in stop_words:
-            lemma = lemmatizer.lemmatize(word)
-            stemmed = stemmer.stem(lemma)
-            tokens.append(stemmed)
-
-    return tokens
+init(autoreset=True)
 
 
-articles = load_articles_from_json("../News_Category_Dataset_v3.json")
-all_tokens = []
+def print_header():
+    print(Fore.CYAN + "=" * 50)
+    print(Fore.YELLOW + "🚀 ОБРАБОТКА НОВОСТНЫХ СТАТЕЙ".center(50))
+    print(Fore.CYAN + "=" * 50 + Style.RESET_ALL)
 
-for article in articles:
-    description = article.get("short_description", "")
-    tokens = clean_and_tokenize(description)
-    all_tokens.extend(tokens)
 
-unique_tokens = sorted(set(all_tokens))
-word_dict = {word: idx for idx, word in enumerate(unique_tokens)}
+def print_step(step, description):
+    print(Fore.GREEN + f"\n[{step}] {description}" + Style.RESET_ALL)
+    time.sleep(0.3)
 
-for word, idx in word_dict.items():
-    print(f'"{word}": {idx},')
+
+def main():
+    print_header()
+
+    # Загрузка статей
+    print_step("1", "Загрузка статей...")
+    articles = load_articles(RAW_DATA_PATH)
+    print(Fore.LIGHTBLUE_EX + f"✔ Загружено {len(articles)} статей" + Style.RESET_ALL)
+
+    # Проверяем, существует ли сохранённый словарь
+    if PROCESSED_DATA_PATH.exists():
+        print_step("2", "Загрузка сохранённого словаря...")
+        with open(PROCESSED_DATA_PATH, 'r') as f:
+            vocab = json.load(f)
+        print(Fore.LIGHTBLUE_EX + f"✔ Загружен словарь ({len(vocab)} токенов)" + Style.RESET_ALL)
+    else:
+        print_step("2", "Создание нового словаря...")
+        all_tokens = []
+        for article in tqdm(articles, desc="Обработка", unit="статья", colour='green'):
+            tokens = process_text(article.get("headline", ""))
+            all_tokens.extend(tokens)
+
+        vocab = build_vocab(all_tokens)
+
+        # Сохраняем словарь для будущего использования
+        with open(PROCESSED_DATA_PATH, 'w') as f:
+            json.dump(vocab, f)
+        print(Fore.LIGHTBLUE_EX + f"✔ Создан и сохранён новый словарь ({len(vocab)} токенов)" + Style.RESET_ALL)
+
+    # Обучение модели
+    print_step("3", "Обучение наивного Байеса...")
+    classifier = NaiveBayesClassifier(vocab)
+    classifier.train(articles)
+
+    # Предсказание для конкретного текста
+    test_text = "Cleaner Was Dead In Belk Bathroom For 4 Days Before Body Found"
+    predicted_category = classifier.predict(test_text)
+
+    print(Fore.CYAN + "\n" + "=" * 50)
+    print(Fore.YELLOW + f"Предсказанная категория: {predicted_category}".center(50))
+    print(Fore.CYAN + "=" * 50 + Style.RESET_ALL)
+
+
+if __name__ == '__main__':
+    main()
