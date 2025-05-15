@@ -1,0 +1,4 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
