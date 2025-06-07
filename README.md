@@ -69,6 +69,7 @@ Logistic Regression + TF-IDF
 ![image](https://github.com/user-attachments/assets/0494744e-9208-494e-b08d-031f2e02d3cf)
 
 Bert
+![image](https://github.com/user-attachments/assets/3bdb9a38-c12c-4cbe-96a1-a382b290b49d)
 
 ## ✅ Выводы
 По результатам тестирования различных моделей классификации:
